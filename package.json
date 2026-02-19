@@ -1,0 +1,9 @@
+{
+  "scripts": {
+    "start": "cd frontend && npm start",
+    "dev": "cd frontend && npm start"
+  },
+  "dependencies": {
+    "caniuse-lite": "^1.0.30001766"
+  }
+}
