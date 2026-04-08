@@ -112,6 +112,8 @@ export const fetchAdminApplications = async () => {
   return records.map((item) => normaliseApplication(item));
 };
 
-export default {
+const adminApplicantsService = {
   fetchAdminApplications
 };
+
+export default adminApplicantsService;

@@ -15,18 +15,9 @@ const toDate = (value) => {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 };
 
-const statusMetadata = {
-  submitted: { label: 'Submitted', tone: 'info' },
-  'under-review': { label: 'Under Review', tone: 'warning' },
-  approved: { label: 'Approved', tone: 'success' },
-  rejected: { label: 'Rejected', tone: 'danger' },
-  withdrawn: { label: 'Withdrawn', tone: 'neutral' }
-};
-
 const ApplicationStatus = () => {
-  const [user, setUser] = useState(null);
   const [applications, setApplications] = useState([]);
-  const [selectedApplication, setSelectedApplication] = useState(null);
+  const [, setSelectedApplication] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -77,14 +68,8 @@ const ApplicationStatus = () => {
       return;
     }
 
-    setUser(storedUser);
     loadApplications(storedUser);
   }, [navigate, loadApplications]);
-
-  const filteredApplications = useMemo(() => {
-    if (statusFilter === 'all') return applications;
-    return applications.filter((application) => application.status === statusFilter);
-  }, [applications, statusFilter]);
 
   const statusCounts = useMemo(() => {
     return applications.reduce(
@@ -96,10 +81,6 @@ const ApplicationStatus = () => {
       { total: 0, submitted: 0, 'under-review': 0, approved: 0, rejected: 0, withdrawn: 0 }
     );
   }, [applications]);
-
-  const handleSelectApplication = (application) => {
-    setSelectedApplication(application);
-  };
 
   const handleViewFunding = () => {
     navigate('/funding');
@@ -117,135 +98,6 @@ const ApplicationStatus = () => {
     }
     clearUserData();
     navigate('/');
-  };
-
-  const renderStatusPill = (status) => {
-    const meta = statusMetadata[status] || { label: status, tone: 'neutral' };
-    return (
-      <span className={`status-pill status-pill-${meta.tone}`}>
-        {meta.label}
-      </span>
-    );
-  };
-
-  const renderApplicationDetail = () => {
-    if (!selectedApplication) {
-      return (
-        <div className="application-detail empty">
-          <h3>Select an application to view its full details</h3>
-          <p>Your submitted responses will appear here for quick reference.</p>
-        </div>
-      );
-    }
-
-    const {
-      fundingTitle,
-      fundingType,
-      programmeReference,
-      status,
-      responses,
-      rawResponses,
-      submittedAt,
-      updatedAt,
-      adminNotes,
-      feedback,
-      allocationDecision,
-      fundAllocation
-    } = selectedApplication;
-
-    const sections = Array.isArray(responses) && responses.length > 0
-      ? responses
-      : [
-          {
-            sectionTitle: 'Application Responses',
-            fields: Object.entries(rawResponses || {}).map(([key, value]) => ({
-              id: key,
-              label: key,
-              value
-            }))
-          }
-        ];
-
-    const formattedDate = (value) => {
-      const date = toDate(value);
-      return date ? date.toLocaleString() : 'Not recorded';
-    };
-
-    return (
-      <div className="application-detail">
-        <div className="detail-header">
-          <div>
-            <p className="detail-subtitle">Funding Opportunity</p>
-            <h2>{fundingTitle || 'Funding Application'}</h2>
-            <p className="detail-meta">{programmeReference || 'No reference available'}</p>
-          </div>
-          <div className="detail-meta-group">
-            {renderStatusPill(status)}
-            <span className="detail-meta">{fundingType || 'Funding type not specified'}</span>
-          </div>
-        </div>
-
-        <div className="detail-grid">
-          <div>
-            <p className="detail-label">Submitted on</p>
-            <p className="detail-value">{formattedDate(submittedAt)}</p>
-          </div>
-          <div>
-            <p className="detail-label">Last updated</p>
-            <p className="detail-value">{formattedDate(updatedAt)}</p>
-          </div>
-        </div>
-
-        {(adminNotes || feedback) && (
-          <div className="detail-panel">
-            <h3>Review Feedback</h3>
-            {feedback && <p className="detail-copy">{feedback}</p>}
-            {adminNotes && (
-              <p className="detail-copy detail-copy-muted">Internal notes: {adminNotes}</p>
-            )}
-          </div>
-        )}
-
-        {allocationDecision?.status && (
-          <div className="detail-panel">
-            <h3>Allocation Decision</h3>
-            <p className="detail-copy">{allocationDecision.status}</p>
-            {allocationDecision.comments && (
-              <p className="detail-copy detail-copy-muted">{allocationDecision.comments}</p>
-            )}
-          </div>
-        )}
-
-        {fundAllocation && (
-          <div className="detail-panel">
-            <h3>Funding Allocation</h3>
-            {fundAllocation.allocationAmount && (
-              <p className="detail-copy">Awarded Amount: R {Number(fundAllocation.allocationAmount).toLocaleString()}</p>
-            )}
-            {fundAllocation.allocationNotes && (
-              <p className="detail-copy detail-copy-muted">Notes: {fundAllocation.allocationNotes}</p>
-            )}
-          </div>
-        )}
-
-        <div className="detail-panel">
-          <h3>Submitted Responses</h3>
-          {sections.map((section) => (
-            <div key={section.sectionId || section.sectionTitle} className="detail-section">
-              <h4>{section.sectionTitle}</h4>
-              <dl>
-                {(section.fields || []).map((field) => (
-                  <div key={field.id || field.label} className="detail-field">
-                    <dt>{field.label}</dt>
-                    <dd>{field.value || 'Not provided'}</dd>
-                  </div>
-                ))}
-              </dl>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
   };
 
   if (loading) {

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { isAuthenticated, getStoredUser, clearUserData } from '../utils/auth';
 import { useNavigate, useLocation } from 'react-router-dom';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -84,22 +84,6 @@ const createInitialResponses = (sections) => {
   return responses;
 };
 
-const formatCurrencyValue = (value) => {
-  if (value === null || value === undefined || value === '') {
-    return 'Not specified';
-  }
-  const numericValue = Number(value);
-  if (Number.isNaN(numericValue)) {
-    return value;
-  }
-  return `R ${numericValue.toLocaleString()}`;
-};
-
-const formatDateValue = (value) => {
-  const date = toDate(value);
-  return date ? date.toLocaleDateString() : 'Not specified';
-};
-
 const ApplicantDashboard = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -108,19 +92,14 @@ const ApplicantDashboard = () => {
   const [error, setError] = useState('');
   const [statusMessage, setStatusMessage] = useState({ type: '', text: '' });
   const [opportunities, setOpportunities] = useState([]);
-  const [selectedOpportunity, setSelectedOpportunity] = useState(null);
-  const [applicationSections, setApplicationSections] = useState(DEFAULT_APPLICATION_SECTIONS);
-  const [applicationResponses, setApplicationResponses] = useState({});
-  const [attachments, setAttachments] = useState([]);
-  const [documentRequirements, setDocumentRequirements] = useState(DEFAULT_DOCUMENT_REQUIREMENTS);
-  const [selectedDocumentType, setSelectedDocumentType] = useState(DEFAULT_DOCUMENT_REQUIREMENTS[0]?.id || '');
-  const [fundingTypeFilter, setFundingTypeFilter] = useState('all');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [draftSaving, setDraftSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [draftMeta, setDraftMeta] = useState(null);
-  const [panelBusy, setPanelBusy] = useState(false);
+  const [, setSelectedOpportunity] = useState(null);
+  const [, setApplicationSections] = useState(DEFAULT_APPLICATION_SECTIONS);
+  const [, setApplicationResponses] = useState({});
+  const [, setAttachments] = useState([]);
+  const [, setDocumentRequirements] = useState(DEFAULT_DOCUMENT_REQUIREMENTS);
+  const [, setSelectedDocumentType] = useState(DEFAULT_DOCUMENT_REQUIREMENTS[0]?.id || '');
+  const [, setDraftMeta] = useState(null);
+  const [, setPanelBusy] = useState(false);
   const firstFieldRef = useRef(null);
   const applicationPanelRef = useRef(null);
 
@@ -191,61 +170,6 @@ const ApplicantDashboard = () => {
     loadDashboardData(storedUser);
   }, [navigate, loadDashboardData]);
 
-  useEffect(() => {
-    const targetOpportunityId = location.state?.focusOpportunityId;
-    if (!targetOpportunityId || opportunities.length === 0) {
-      return;
-    }
-
-    const matchingOpportunity = opportunities.find((item) => item.id === targetOpportunityId);
-    if (matchingOpportunity) {
-      handleSelectOpportunity(matchingOpportunity);
-    } else {
-      setStatusMessage({ type: 'info', text: 'The bursary you selected is no longer available.' });
-    }
-
-    navigate(location.pathname, { replace: true, state: {} });
-  }, [location.pathname, location.state, navigate, opportunities]);
-
-  const fundingTypes = useMemo(() => {
-    const types = new Set();
-    opportunities.forEach((opportunity) => {
-      if (opportunity.fundingType) {
-        types.add(opportunity.fundingType);
-      }
-    });
-    return Array.from(types).sort();
-  }, [opportunities]);
-
-  const filteredOpportunities = useMemo(() => {
-    return opportunities.filter((opportunity) => {
-      const matchesType = fundingTypeFilter === 'all'
-        || (opportunity.fundingType || '').toLowerCase() === fundingTypeFilter.toLowerCase();
-      const matchesSearch = !searchTerm
-        || opportunity.title.toLowerCase().includes(searchTerm.toLowerCase())
-        || (opportunity.description || '').toLowerCase().includes(searchTerm.toLowerCase());
-      return matchesType && matchesSearch;
-    });
-  }, [opportunities, fundingTypeFilter, searchTerm]);
-
-  const handleSignOut = async () => {
-    try {
-      await FirebaseService.logoutUser();
-    } catch (signOutError) {
-      console.error('Firebase logout error:', signOutError);
-    }
-
-    clearUserData();
-    setUser(null);
-
-    // Force a full navigation back to the landing experience
-    window.location.replace('/');
-  };
-
-  const handleViewProfile = () => {
-    navigate('/profile');
-  };
-
   const handleSelectOpportunity = useCallback(async (opportunity) => {
     if (!opportunity) return;
     setPanelBusy(true);
@@ -297,166 +221,39 @@ const ApplicantDashboard = () => {
     setPanelBusy(false);
   }, [user]);
 
-  const handleResponseChange = (fieldId, value) => {
-    setApplicationResponses((previous) => ({
-      ...previous,
-      [fieldId]: value
-    }));
-  };
-
-  const handleUploadDocuments = async (event) => {
-    if (!user || !selectedOpportunity) {
-      setStatusMessage({ type: 'error', text: 'Select a funding opportunity before uploading documents.' });
+  useEffect(() => {
+    const targetOpportunityId = location.state?.focusOpportunityId;
+    if (!targetOpportunityId || opportunities.length === 0) {
       return;
     }
 
-    if (!selectedDocumentType) {
-      setStatusMessage({ type: 'error', text: 'Choose the document type you are uploading.' });
-      return;
+    const matchingOpportunity = opportunities.find((item) => item.id === targetOpportunityId);
+    if (matchingOpportunity) {
+      handleSelectOpportunity(matchingOpportunity);
+    } else {
+      setStatusMessage({ type: 'info', text: 'The bursary you selected is no longer available.' });
     }
 
-    const files = Array.from(event.target.files || []);
-    if (files.length === 0) {
-      return;
-    }
+    navigate(location.pathname, { replace: true, state: {} });
+  }, [location.pathname, location.state, navigate, opportunities, handleSelectOpportunity]);
 
-    setUploading(true);
+
+  const handleSignOut = async () => {
     try {
-      const uploads = [];
-      for (const file of files) {
-        const metadata = await FirebaseService.uploadSupportingDocument(user.uid, selectedOpportunity.id, file);
-        uploads.push({
-          name: metadata.name,
-          url: metadata.url,
-          path: metadata.path,
-          size: metadata.size,
-          contentType: metadata.contentType,
-          base64: metadata.base64,
-          uploadedAt: (toDate(metadata.uploadedAt) || new Date()).toISOString(),
-          docType: selectedDocumentType,
-          docLabel: documentRequirements.find((requirement) => requirement.id === selectedDocumentType)?.label || selectedDocumentType
-        });
-      }
-
-      setAttachments((previous) => {
-        const remaining = previous.filter((attachment) => attachment.docType !== selectedDocumentType);
-        return [...remaining, ...uploads];
-      });
-      setStatusMessage({ type: 'success', text: 'Document uploaded successfully.' });
-    } catch (uploadError) {
-      console.error('Supporting document upload error:', uploadError);
-      setStatusMessage({ type: 'error', text: uploadError.message || 'Failed to upload document. Please try again.' });
-    } finally {
-      setUploading(false);
-      event.target.value = '';
+      await FirebaseService.logoutUser();
+    } catch (signOutError) {
+      console.error('Firebase logout error:', signOutError);
     }
+
+    clearUserData();
+    setUser(null);
+
+    // Force a full navigation back to the landing experience
+    window.location.replace('/');
   };
 
-  const handleRemoveAttachment = async (attachment) => {
-    if (!attachment) return;
-    try {
-      await FirebaseService.deleteSupportingDocument(attachment.path);
-    } catch (deleteError) {
-      console.error('Attachment delete error:', deleteError);
-    }
-    setAttachments((previous) => previous.filter((item) => item.path !== attachment.path));
-  };
-
-  const handleSaveDraft = async () => {
-    if (!user || !selectedOpportunity) return;
-    setDraftSaving(true);
-    try {
-      await FirebaseService.saveApplicationDraft(user.uid, selectedOpportunity.id, {
-        responses: applicationResponses,
-        attachments
-      });
-      setDraftMeta({ updatedAt: new Date().toISOString() });
-      setStatusMessage({ type: 'success', text: 'Draft saved successfully.' });
-    } catch (saveError) {
-      console.error('Draft save error:', saveError);
-      setStatusMessage({ type: 'error', text: saveError.message || 'Failed to save draft. Please try again.' });
-    } finally {
-      setDraftSaving(false);
-    }
-  };
-
-  const handleCancelApplication = () => {
-    setSelectedOpportunity(null);
-    setApplicationResponses({});
-    setAttachments([]);
-    setDraftMeta(null);
-    setStatusMessage({ type: '', text: '' });
-  };
-
-  const handleSubmitApplication = async (event) => {
-    event.preventDefault();
-    if (!user || !selectedOpportunity) return;
-
-    const missingField = applicationSections.some((section) =>
-      (section.fields || []).some((field) => {
-        const value = applicationResponses[field.id];
-        if (field.inputType === 'number') {
-          return value === '' || value === null || value === undefined;
-        }
-        return !String(value || '').trim();
-      })
-    );
-
-    if (missingField) {
-      setStatusMessage({ type: 'error', text: 'Please complete all required fields before submitting.' });
-      return;
-    }
-
-    const requiredIds = documentRequirements.map((requirement) => requirement.id);
-    const satisfiedDocs = attachments.filter((attachment) => requiredIds.includes(attachment.docType));
-    if (requiredIds.some((requirementId) => !satisfiedDocs.find((attachment) => attachment.docType === requirementId))) {
-      setStatusMessage({ type: 'error', text: 'Upload all required supporting documents before submitting.' });
-      return;
-    }
-
-    const structuredResponses = applicationSections.map((section) => ({
-      sectionId: section.id,
-      sectionTitle: section.title,
-      fields: (section.fields || []).map((field) => ({
-        id: field.id,
-        label: field.label,
-        value: applicationResponses[field.id] || ''
-      }))
-    }));
-
-    const applicantName = `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || user?.displayName || user?.email;
-
-    const payload = {
-      applicantId: user.uid,
-      applicantEmail: user.email,
-      applicantName,
-      applicantRole: user.role || 'applicant',
-      fundingOpportunityId: selectedOpportunity.id,
-      fundingTitle: selectedOpportunity.title,
-      fundingType: selectedOpportunity.fundingType,
-      programmeReference: selectedOpportunity.reference || '',
-      responses: structuredResponses,
-      rawResponses: applicationResponses,
-      applicationAttributes: applicationSections,
-      attachments,
-      submittedBy: user.uid,
-      lastUpdatedBy: user.uid
-    };
-
-    try {
-      setSubmitting(true);
-      setStatusMessage({ type: '', text: '' });
-      await FirebaseService.submitApplication(payload);
-      await FirebaseService.deleteApplicationDraft(user.uid, selectedOpportunity.id);
-      setStatusMessage({ type: 'success', text: 'Application submitted successfully. Track progress from the status panel.' });
-      handleCancelApplication();
-      await loadDashboardData(user);
-    } catch (submitError) {
-      console.error('Application submission error:', submitError);
-      setStatusMessage({ type: 'error', text: submitError.message || 'Failed to submit application. Please try again.' });
-    } finally {
-      setSubmitting(false);
-    }
+  const handleViewProfile = () => {
+    navigate('/profile');
   };
 
   const handleViewStatus = () => {
